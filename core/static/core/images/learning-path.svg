@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <title>Aprendizado que conecta ideias e oportunidades</title>
+  <desc>Ilustração geométrica em vinho e dourado com livros, um projeto digital e caminhos de evolução.</desc>
+  <defs>
+    <linearGradient id="background" x1="80" y1="40" x2="1560" y2="850" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#37141F"/><stop offset="1" stop-color="#741F39"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="470" y1="150" x2="1120" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF7"/><stop offset="1" stop-color="#F2DFC2"/>
+    </linearGradient>
+    <pattern id="dots" width="36" height="36" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="2" fill="#FFFFFF" fill-opacity=".09"/>
+    </pattern>
+  </defs>
+  <path fill="url(#background)" d="M0 0h1600v900H0z"/>
+  <path fill="url(#dots)" d="M0 0h1600v900H0z"/>
+  <circle cx="1410" cy="72" r="430" stroke="#F2BE63" stroke-opacity=".12" stroke-width="2"/>
+  <circle cx="1410" cy="72" r="350" stroke="#F2BE63" stroke-opacity=".12" stroke-width="2"/>
+  <circle cx="102" cy="805" r="300" fill="#AF5471" fill-opacity=".12"/>
+  <path d="M160 634h125c78 0 59-178 156-178h678c118 0 45-187 164-187h169" stroke="#F2BE63" stroke-opacity=".55" stroke-width="4" stroke-dasharray="12 14"/>
+  <g transform="rotate(-7 788 445)">
+    <rect x="475" y="204" width="680" height="500" rx="36" fill="#230D17" fill-opacity=".28"/>
+    <rect x="452" y="178" width="680" height="500" rx="30" fill="url(#sheet)"/>
+    <rect x="452" y="178" width="680" height="70" rx="30" fill="#F4E9D8"/>
+    <path d="M452 220h680v28H452z" fill="#F4E9D8"/>
+    <circle cx="490" cy="212" r="7" fill="#8C3650"/><circle cx="514" cy="212" r="7" fill="#D0A568"/><circle cx="538" cy="212" r="7" fill="#B6B398"/>
+    <rect x="500" y="293" width="254" height="26" rx="8" fill="#62203A"/>
+    <rect x="500" y="337" width="184" height="11" rx="5" fill="#B1A095"/>
+    <rect x="500" y="363" width="226" height="11" rx="5" fill="#D1C3B3"/>
+    <rect x="500" y="389" width="210" height="11" rx="5" fill="#D1C3B3"/>
+    <rect x="500" y="461" width="240" height="160" rx="16" fill="#F1E3CF"/>
+    <path d="m538 513 22 20-22 20m41 0h42" stroke="#8C3650" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="790" y="293" width="292" height="328" rx="18" fill="#542239"/>
+    <path d="M830 570h212" stroke="#F4E9D8" stroke-opacity=".25" stroke-width="2"/>
+    <rect x="838" y="480" width="42" height="90" rx="7" fill="#A96177"/>
+    <rect x="916" y="426" width="42" height="144" rx="7" fill="#D39786"/>
+    <rect x="994" y="358" width="42" height="212" rx="7" fill="#F2BE63"/>
+    <path d="m837 432 68-46 56 5 63-66" stroke="#FFF5DD" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="m1001 325 24-1-1 24" stroke="#FFF5DD" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="rotate(9 366 662)">
+    <rect x="226" y="626" width="275" height="72" rx="12" fill="#D4953D"/>
+    <rect x="237" y="638" width="264" height="46" rx="6" fill="#F9ECD2"/>
+    <rect x="207" y="572" width="274" height="65" rx="12" fill="#A75970"/>
+    <rect x="219" y="584" width="262" height="39" rx="6" fill="#FFF8E8"/>
+    <path d="M267 584v66l19-13 19 13v-66" fill="#F2BE63"/>
+  </g>
+  <circle cx="1203" cy="247" r="84" fill="#F2BE63"/>
+  <path d="m1168 248 24 24 45-50" stroke="#552137" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="279" cy="327" r="11" fill="#F2BE63"/><circle cx="1297" cy="612" r="7" fill="#F2BE63"/>
+  <path d="M1281 718v32m-16-16h32M367 189v28m-14-14h28" stroke="#F7D9A4" stroke-width="4" stroke-linecap="round"/>
+</svg>

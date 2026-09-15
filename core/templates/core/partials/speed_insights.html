@@ -1,0 +1,5 @@
+{% load static %}
+{% if PIEM_SPEED_INSIGHTS %}
+  {{ PIEM_SPEED_INSIGHTS|json_script:'piem-speed-insights-config' }}
+  <script type="module" src="{% static 'core/js/speed-insights.mjs' %}"></script>
+{% endif %}

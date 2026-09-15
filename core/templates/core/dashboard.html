@@ -117,23 +117,31 @@
     </div>
   </section>
 
-  <section class="tutor-card" x-data="{ listening: false }">
+  <section class="tutor-card" aria-labelledby="tutor-title">
     <div class="section-heading">
-      <div><span class="eyebrow">Mentor cognitivo multi-LLM</span><h2>Tutor PIEM 2.0</h2><p>Orientação de carreira, prática e simulação de entrevista com histórico salvo.</p></div>
-      <span class="badge badge-wine">OpenAI · Gemini · Anthropic</span>
+      <div><span class="eyebrow">Seu próximo passo profissional</span><h2 id="tutor-title">Tutor PIEM</h2><p>Explore oficinas, organize um projeto ou pratique uma entrevista com histórico salvo.</p></div>
+      <span class="badge badge-wine">Orientação para aprender</span>
     </div>
     <div class="tutor-chips-group">
-      <button type="button" class="tutor-chip" onclick="sendQuickPrompt('recomendar_cursos')">Recomendar oficinas</button>
-      <button type="button" class="tutor-chip" onclick="sendQuickPrompt('tarefa_dia')">Tarefa do dia</button>
-      <button type="button" class="tutor-chip" onclick="sendQuickPrompt('ideia_projeto')">Ideia de projeto</button>
-      <button type="button" class="tutor-chip" onclick="sendQuickPrompt('simular_entrevista')">Simular entrevista</button>
+      <button type="button" class="tutor-chip" data-tutor-prompt="recomendar_cursos">Recomendar oficinas</button>
+      <button type="button" class="tutor-chip" data-tutor-prompt="tarefa_dia">Tarefa do dia</button>
+      <button type="button" class="tutor-chip" data-tutor-prompt="ideia_projeto">Ideia de projeto</button>
+      <button type="button" class="tutor-chip" data-tutor-prompt="simular_entrevista">Simular entrevista</button>
     </div>
-    <div id="chat" class="chat-box" data-url="{% url 'tutor_api' %}">
+    <div id="chat" class="chat-box" data-url="{% url 'tutor_api' %}" data-session-id="{{ chat_session_id|default_if_none:'' }}" role="log" aria-label="Conversa com o tutor" aria-live="polite" aria-relevant="additions" aria-busy="false" tabindex="0">
       {% for item in chat_history %}
         <div class="chat-message {% if item.role == 'user' %}user-message{% else %}tutor-message{% endif %}"><span class="sender">{% if item.role == 'user' %}Você{% else %}Tutor PIEM{% endif %}</span><div class="bubble">{{ item.content|linebreaksbr }}</div></div>
       {% empty %}<div class="chat-message tutor-message"><span class="sender">Tutor PIEM</span><div class="bubble">Olá, {{ user.nome }}. Qual competência profissional você quer desenvolver hoje?</div></div>{% endfor %}
     </div>
-    <div class="chat-input-group">{% csrf_token %}<input id="message" type="text" placeholder="Escreva sua pergunta..." autocomplete="off"><button type="button" class="btn btn-outline voice-button" onclick="startVoiceInput()" aria-label="Ditado por voz">🎙</button><button id="tutor-send-btn" type="button" class="btn btn-gold" onclick="askTutor()">Enviar</button></div>
+    <form id="tutor-form" class="chat-input-group">
+      {% csrf_token %}
+      <label class="sr-only" for="message">Sua pergunta para o tutor</label>
+      <input id="message" type="text" placeholder="Escreva sua pergunta..." autocomplete="off" maxlength="4000" aria-describedby="tutor-status" required>
+      <button id="tutor-voice-btn" type="button" class="btn btn-outline voice-button" aria-label="Ditado por voz" aria-pressed="false" hidden>🎙</button>
+      <button id="tutor-send-btn" type="submit" class="btn btn-gold">Enviar</button>
+    </form>
+    <p id="tutor-status" class="form-help" role="status" aria-live="polite">Pressione Enter para enviar. Até 4.000 caracteres por pergunta.</p>
+    <noscript><p>Ative o JavaScript no navegador para conversar com o tutor. Seu histórico continua disponível acima.</p></noscript>
   </section>
 </div>
 {% endblock %}

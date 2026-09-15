@@ -4,9 +4,9 @@ import json
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
-from django.db.models import Avg, Sum
+from django.db.models import Prefetch
 
-from .models import AuditLog, ChallengeSubmission, SoftSkillAssessment, User
+from .models import AuditLog, ChallengeSubmission, User
 
 
 def _cipher():
@@ -51,21 +51,23 @@ def audit(request, action, instance=None, details=None):
 
 def employability_score(student):
     """Score transparente de 0–1000: frequência 35%, soft skills 30%, entregas 35%."""
-    attendances = student.frequencias.all()
-    total_attendance = attendances.count()
-    attendance_ratio = attendances.filter(presente=True).count() / total_attendance if total_attendance else 0
+    # Read related objects once so ranked_students can reuse its batched queries.
+    attendances = list(student.frequencias.all())
+    attendance_ratio = sum(item.presente for item in attendances) / len(attendances) if attendances else 0
 
-    soft = SoftSkillAssessment.objects.filter(aluno=student).aggregate(
-        comunicacao=Avg("comunicacao"),
-        proatividade=Avg("proatividade"),
-        equipe=Avg("trabalho_equipe"),
+    assessments = list(student.avaliacoes_soft_skills.all())
+    soft_ratio = (
+        sum(item.comunicacao + item.proatividade + item.trabalho_equipe for item in assessments)
+        / (len(assessments) * 15)
+        if assessments else 0
     )
-    soft_values = [value for value in soft.values() if value is not None]
-    soft_ratio = (sum(soft_values) / len(soft_values) / 5) if soft_values else 0
 
-    deliveries = ChallengeSubmission.objects.filter(aluno=student)
-    awarded = deliveries.aggregate(total=Sum("pontos_atribuidos"))["total"] or 0
-    possible = sum(item.desafio.pontos for item in deliveries.select_related("desafio"))
+    deliveries = student.entregas_desafios.all()
+    if "entregas_desafios" not in getattr(student, "_prefetched_objects_cache", {}):
+        deliveries = deliveries.select_related("desafio")
+    deliveries = list(deliveries)
+    awarded = sum(item.pontos_atribuidos for item in deliveries)
+    possible = sum(item.desafio.pontos for item in deliveries)
     delivery_ratio = min(1, awarded / possible) if possible else 0
 
     components = {
@@ -87,6 +89,11 @@ def employability_score(student):
 
 def ranked_students(queryset=None):
     students = queryset if queryset is not None else User.objects.filter(perfil_acesso=User.Role.STUDENT)
+    students = students.select_related("escola", "turma").prefetch_related(
+        "frequencias",
+        "avaliacoes_soft_skills",
+        Prefetch("entregas_desafios", queryset=ChallengeSubmission.objects.select_related("desafio")),
+    )
     ranking = [{"student": student, **employability_score(student)} for student in students]
     ranking.sort(key=lambda item: (-item["score"], item["student"].nome.lower()))
     for position, item in enumerate(ranking, start=1):

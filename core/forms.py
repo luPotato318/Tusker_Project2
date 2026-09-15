@@ -1,6 +1,7 @@
 import re
 from django import forms
 from django.contrib.auth import authenticate
+from django.core.validators import validate_email
 from django.db.models import Q
 from .models import (
     ChallengeSubmission,
@@ -35,9 +36,11 @@ class RegistrationForm(forms.Form):
 
     def clean_identifier(self):
         identifier = normalize_identifier(self.cleaned_data["identifier"])
+        if "@" in identifier:
+            validate_email(identifier)
         if "@" not in identifier and (not identifier.isdigit() or len(identifier) != 11):
             raise forms.ValidationError("Informe um e-mail válido ou CPF com 11 dígitos.")
-        if User.objects.filter(identifier=identifier).exists(): 
+        if User.objects.filter(Q(identifier__iexact=identifier) | Q(email__iexact=identifier)).exists():
             raise forms.ValidationError("Este CPF ou e-mail já possui cadastro no sistema.")
         return identifier
 
@@ -178,9 +181,11 @@ class AdminUserForm(forms.ModelForm):
 
     def clean_identifier(self):
         identifier = normalize_identifier(self.cleaned_data["identifier"])
+        if "@" in identifier:
+            validate_email(identifier)
         if "@" not in identifier and (not identifier.isdigit() or len(identifier) != 11):
             raise forms.ValidationError("Informe um e-mail válido ou CPF com 11 dígitos.")
-        duplicate = User.objects.filter(identifier=identifier).exclude(pk=self.instance.pk)
+        duplicate = User.objects.filter(Q(identifier__iexact=identifier) | Q(email__iexact=identifier)).exclude(pk=self.instance.pk)
         if duplicate.exists():
             raise forms.ValidationError("Este identificador já pertence a outra conta.")
         return identifier
@@ -192,7 +197,7 @@ class AdminUserForm(forms.ModelForm):
         if not email and "@" in identifier:
             email = identifier
             values["email"] = email
-        if email and User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+        if email and User.objects.filter(Q(email__iexact=email) | Q(identifier__iexact=email)).exclude(pk=self.instance.pk).exists():
             self.add_error("email", "Este e-mail já está associado a outra conta.")
         classroom = values.get("turma")
         school = values.get("escola")

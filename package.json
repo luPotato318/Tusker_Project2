@@ -1,4 +1,9 @@
 {
+  "private": true,
+  "scripts": {
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "test": "node --test scripts/tests/*.test.cjs scripts/tests/*.test.mjs"
+  },
   "dependencies": {
     "@vercel/speed-insights": "^2.0.0"
   }

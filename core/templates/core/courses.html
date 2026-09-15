@@ -1,5 +1,6 @@
 {% extends 'core/base.html' %}
 {% block title %}Cursos e oficinas — PIEM{% endblock %}
+{% block meta_description %}Explore cursos e oficinas PIEM por área de interesse e formato. Confira datas, duração e vagas disponíveis para dar o próximo passo na sua formação.{% endblock %}
 {% block content %}
 <div class="dashboard-shell catalog-page">
   <section class="dashboard-heading">
@@ -7,18 +8,19 @@
     {% if user.is_authenticated and user.perfil_acesso == 'student' %}<a class="btn btn-outline" href="{% url 'dashboard' %}">Voltar ao meu painel</a>{% endif %}
   </section>
 
-  <form method="get" class="catalog-filter">
-    <input name="q" value="{{ query }}" placeholder="Buscar curso, tema ou área">
-    <select name="area"><option value="">Todas as áreas</option>{% for area in areas %}<option value="{{ area }}" {% if selected_area == area %}selected{% endif %}>{{ area }}</option>{% endfor %}</select>
-    <select name="modalidade"><option value="">Todos os formatos</option>{% for value, label in modalities %}<option value="{{ value }}" {% if selected_modality == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-    <button class="btn btn-wine">Buscar</button>
-    {% if query or selected_area or selected_modality %}<a class="btn btn-outline" href="{% url 'courses' %}">Limpar</a>{% endif %}
+  <form method="get" class="catalog-filter" role="search" aria-label="Buscar cursos e oficinas">
+    <div class="filter-field"><label for="course-query">O que você quer aprender?</label><input id="course-query" type="search" name="q" value="{{ query }}" placeholder="Curso, tema ou área"></div>
+    <div class="filter-field"><label for="course-area">Área de interesse</label><select id="course-area" name="area"><option value="">Todas as áreas</option>{% for area in areas %}<option value="{{ area }}" {% if selected_area == area %}selected{% endif %}>{{ area }}</option>{% endfor %}</select></div>
+    <div class="filter-field"><label for="course-modality">Formato</label><select id="course-modality" name="modalidade"><option value="">Todos os formatos</option>{% for value, label in modalities %}<option value="{{ value }}" {% if selected_modality == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button type="submit" class="btn btn-wine">Buscar</button>
+    {% if query or selected_area or selected_modality %}<a class="btn btn-outline" href="{% url 'courses' %}">Limpar filtros</a>{% endif %}
   </form>
 
-  <section class="grid grid-3 course-grid">
+  <p class="catalog-results" id="catalog-results">{{ paginator.count }} curso{{ paginator.count|pluralize }} encontrado{{ paginator.count|pluralize }}{% if query %} para “{{ query }}”{% endif %}.{% if paginator.count %} Exibindo {{ page_obj.start_index }}–{{ page_obj.end_index }}.{% endif %}</p>
+  <section class="grid grid-3 course-grid" aria-labelledby="catalog-results">
     {% for course in courses %}
     <article class="card course-card">
-      <img class="card-cover" src="{{ course.image_url }}" alt="Imagem contextual de {{ course.area }}" loading="lazy">
+      <img class="card-cover" src="{{ course.image_url }}" alt="" loading="lazy" decoding="async" width="600" height="400">
       <div class="card-topline"><span class="badge badge-wine">{{ course.area }}</span><span class="badge badge-stable">{{ course.get_modalidade_display }}</span></div>
       <h2>{{ course.titulo }}</h2>
       <p>{{ course.descricao|truncatewords:28 }}</p>
@@ -36,7 +38,14 @@
         <a class="btn btn-gold" href="{% url 'login_aluno' %}">Entrar para me inscrever</a>
       {% endif %}
     </article>
-    {% empty %}<div class="empty-state">Não encontramos cursos disponíveis com esses filtros.</div>{% endfor %}
+    {% empty %}<div class="empty-state"><h2>Nenhum curso encontrado</h2><p>{% if query or selected_area or selected_modality %}Tente outro tema ou remova os filtros para explorar as opções disponíveis.{% else %}Novas oficinas aparecerão aqui assim que forem publicadas.{% endif %}</p>{% if query or selected_area or selected_modality %}<a class="btn btn-outline" href="{% url 'courses' %}">Ver todos os cursos</a>{% endif %}</div>{% endfor %}
   </section>
+  {% if page_obj.has_other_pages %}
+  <nav class="form-actions" aria-label="Paginação dos cursos">
+    {% if page_obj.has_previous %}<a class="btn btn-outline" rel="prev" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Página anterior</a>{% endif %}
+    <span aria-current="page">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn btn-outline" rel="next" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Próxima página</a>{% endif %}
+  </nav>
+  {% endif %}
 </div>
 {% endblock %}

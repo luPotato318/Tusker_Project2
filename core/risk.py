@@ -1,6 +1,7 @@
 """Camada de risco: calcula regra transparente com margem de faltas e suporte a modelo ML."""
 def attendance_risk(attendances):
-    total = attendances.count()
+    records = list(attendances.all())
+    total = len(records)
     if not total:
         return {
             "score": 0,
@@ -14,8 +15,8 @@ def attendance_risk(attendances):
             "mensagem": "Sem registros de frequência até o momento."
         }
 
-    absences = attendances.filter(presente=False).count()
-    presences = attendances.filter(presente=True).count()
+    presences = sum(item.presente for item in records)
+    absences = total - presences
     rate = round(absences / total * 100, 1)
     presence_rate = round(100 - rate, 1)
     

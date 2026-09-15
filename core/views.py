@@ -1,6 +1,7 @@
 import json
 import secrets
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 import qrcode
 from django.contrib import messages
@@ -8,6 +9,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django.db.models import Q
@@ -77,7 +79,10 @@ def _students_for_staff(user):
     if user.is_superuser or user.perfil_acesso == User.Role.ADMIN:
         return students
     class_ids = user.turmas_docentes.values_list("id", flat=True)
-    return students.filter(Q(turma_id__in=class_ids) | Q(escola=user.escola, turma__isnull=True)).distinct()
+    scope = Q(turma_id__in=class_ids)
+    if user.escola_id:
+        scope |= Q(escola_id=user.escola_id, turma__isnull=True)
+    return students.filter(scope).distinct()
 
 
 def _ensure_student_scope(actor, student):
@@ -117,7 +122,11 @@ def courses_view(request):
         courses = courses.filter(modalidade=modality)
     if query:
         courses = courses.filter(Q(titulo__icontains=query) | Q(descricao__icontains=query) | Q(area__icontains=query))
-    courses = list(courses.order_by("data"))
+    paginator = Paginator(courses.order_by("data", "pk").prefetch_related("inscricoes"), 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    courses = list(page_obj.object_list)
+    pagination_params = request.GET.copy()
+    pagination_params.pop("page", None)
     for course in courses:
         course.image_url = get_contextual_image(course.imagem_query or course.area)
     enrollment_ids = set()
@@ -125,6 +134,9 @@ def courses_view(request):
         enrollment_ids = set(request.user.inscricoes_oficinas.values_list("workshop_id", flat=True))
     return render(request, "core/courses.html", {
         "courses": courses,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "pagination_query": pagination_params.urlencode(),
         "areas": [item[0] for item in Workshop.AREAS],
         "modalities": Workshop.Modality.choices,
         "selected_area": area,
@@ -198,7 +210,10 @@ def dashboard(request):
         challenge.student_submission = submissions.get(challenge.id)
     ranking = ranked_students(User.objects.filter(perfil_acesso=User.Role.STUDENT, escola=user.escola))
     own_rank = next((item for item in ranking if item["student"].pk == user.pk), None)
-    jobs = JobOpportunity.objects.filter(ativa=True).filter(Q(escola__isnull=True) | Q(escola=user.escola))[:6]
+    jobs = JobOpportunity.objects.filter(ativa=True).filter(
+        Q(escola__isnull=True) | Q(escola=user.escola),
+        Q(encerra_em__isnull=True) | Q(encerra_em__gt=timezone.now()),
+    )[:6]
     session = user.sessoes_tutor.order_by("-atualizada_em").first()
     return render(request, "core/dashboard.html", {
         "risk": attendance_risk(user.frequencias),
@@ -211,6 +226,7 @@ def dashboard(request):
         "jobs": jobs,
         "applications": {item.vaga_id: item for item in user.candidaturas.all()},
         "chat_history": session.mensagens.all() if session else [],
+        "chat_session_id": session.pk if session else None,
     })
 
 
@@ -350,6 +366,9 @@ def job_apply(request, job_id):
     job = get_object_or_404(JobOpportunity, pk=job_id, ativa=True)
     if job.escola_id and job.escola_id != request.user.escola_id:
         raise PermissionDenied("Esta vaga está vinculada a outra escola.")
+    if job.encerra_em and job.encerra_em <= timezone.now():
+        messages.error(request, "O prazo de candidatura para esta vaga foi encerrado.")
+        return redirect("dashboard")
     application, created = JobApplication.objects.get_or_create(
         vaga=job,
         aluno=request.user,
@@ -649,18 +668,36 @@ def safe_report(request):
     return redirect("home")
 
 
+def _tutor_request_payload(request):
+    payload = json.loads(request.body or "{}")
+    if not isinstance(payload, dict):
+        raise ValueError("O corpo da requisição deve ser um objeto JSON.")
+    text = payload.get("mensagem")
+    if not isinstance(text, str) or not text.strip() or len(text) > 4000:
+        raise ValueError("Informe uma mensagem de até 4000 caracteres.")
+    return payload, text.strip()
+
+
 @role_required(User.Role.STUDENT)
 @require_POST
 def tutor_api(request):
     try:
-        payload = json.loads(request.body or "{}")
-        text = str(payload.get("mensagem", ""))[:4000]
+        payload, text = _tutor_request_payload(request)
         session_id = payload.get("session_id")
-        session = request.user.sessoes_tutor.filter(pk=session_id).first() if session_id else None
-        if not session:
-            session = ChatSession.objects.create(user=request.user, titulo=(text[:70] or "Conversa com Tutor PIEM"))
+        if session_id is not None and (type(session_id) is not int or not 0 < session_id <= 9223372036854775807):
+            raise ValueError("Sessão inválida.")
+    except (ValueError, TypeError):
+        return JsonResponse({"status": "erro", "resposta_tutor": "Informe uma mensagem válida de até 4000 caracteres."}, status=400)
+
+    session = request.user.sessoes_tutor.filter(pk=session_id).first() if session_id is not None else None
+    if session_id is not None and session is None:
+        return JsonResponse({"status": "erro", "resposta_tutor": "Conversa não encontrada. Atualize a página para continuar."}, status=404)
+
+    reply = tutor_reply(text, request.user.perfil_acesso, request.user.area_interesse, request.user)
+    with transaction.atomic():
+        if session is None:
+            session = ChatSession.objects.create(user=request.user, titulo=text[:70])
         ChatMessage.objects.create(session=session, role=ChatMessage.Role.USER, content=text)
-        reply = tutor_reply(text, request.user.perfil_acesso, request.user.area_interesse, request.user)
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.ASSISTANT,
@@ -668,9 +705,7 @@ def tutor_api(request):
             provider=reply.get("provider", "local"),
         )
         session.save(update_fields=["atualizada_em"])
-        return JsonResponse({"status": "sucesso", "resposta_tutor": reply, "session_id": session.pk})
-    except (json.JSONDecodeError, ValueError, TypeError):
-        return JsonResponse({"status": "erro", "resposta_tutor": "Mensagem inválida."}, status=400)
+    return JsonResponse({"status": "sucesso", "resposta_tutor": reply, "session_id": session.pk})
 
 
 @csrf_exempt
@@ -684,11 +719,13 @@ def php_bridge_tutor_api(request):
     if not supplied_secret or not secrets.compare_digest(configured_secret, supplied_secret):
         return JsonResponse({"status": "erro", "mensagem": "Credencial da ponte inválida."}, status=403)
     try:
-        payload = json.loads(request.body or "{}")
+        payload, text = _tutor_request_payload(request)
+        if any(not isinstance(payload[key], str) for key in ("perfil", "area") if key in payload):
+            raise ValueError("Perfil e área devem ser textos.")
         reply = tutor_reply(
-            str(payload.get("mensagem", ""))[:4000],
-            str(payload.get("perfil", "external"))[:24],
-            str(payload.get("area", "Tecnologia da Informação"))[:100],
+            text,
+            payload.get("perfil", "external")[:24],
+            payload.get("area", "Tecnologia da Informação")[:100],
         )
         return JsonResponse({"status": "sucesso", "resposta_tutor": reply})
     except (json.JSONDecodeError, TypeError, ValueError):
@@ -717,19 +754,19 @@ def resume_pdf(request):
     styles = getSampleStyleSheet()
     score = employability_score(user)
     story = [
-        Paragraph(user.nome, styles["Title"]),
-        Paragraph(f"{user.area_interesse} · {user.talent_code}", styles["Heading2"]),
+        Paragraph(escape(user.nome), styles["Title"]),
+        Paragraph(escape(f"{user.area_interesse} · {user.talent_code}"), styles["Heading2"]),
         Spacer(1, 10),
-        Paragraph(user.biografia or "Estudante do 3º ano em preparação para oportunidades de aprendizagem e estágio.", styles["BodyText"]),
+        Paragraph(escape(user.biografia or "Estudante do 3º ano em preparação para oportunidades de aprendizagem e estágio."), styles["BodyText"]),
         Spacer(1, 14),
-        Table([["Score PIEM", str(score["score"])], ["Nível", score["level"]], ["Competências", ", ".join(user.competencies_list) or "Em desenvolvimento"]], colWidths=[110, 390]),
+        Table([["Score PIEM", str(score["score"])], ["Nível", score["level"]], ["Competências", Paragraph(escape(", ".join(user.competencies_list) or "Em desenvolvimento"), styles["BodyText"])]], colWidths=[110, 390]),
         Spacer(1, 14),
         Paragraph("Projetos e evidências", styles["Heading2"]),
     ]
     for project in user.projetos.all()[:8]:
-        story.append(Paragraph(f"<b>{project.titulo}</b> — {project.resumo}", styles["BodyText"]))
+        story.append(Paragraph(f"<b>{escape(project.titulo)}</b> — {escape(project.resumo)}", styles["BodyText"]))
         story.append(Spacer(1, 6))
-    verification = Table([[Image(qr_buffer, 72, 72), Paragraph(f"Validação digital PIEM<br/>{verify_url}", styles["BodyText"])]], colWidths=[84, 416])
+    verification = Table([[Image(qr_buffer, 72, 72), Paragraph(f"Validação digital PIEM<br/>{escape(verify_url)}", styles["BodyText"])]], colWidths=[84, 416])
     verification.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#800020")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
     story.extend([Spacer(1, 18), verification])
     doc.build(story)
@@ -764,6 +801,10 @@ def impact_export(request, format):
         sheet.append(headers)
         for row in rows:
             sheet.append([row[key] for key in headers])
+            # Names and school data are text, even when they begin with '='.
+            for cell in sheet[sheet.max_row]:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
         output = BytesIO()
         workbook.save(output)
         response = HttpResponse(output.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

@@ -3,6 +3,9 @@ import json
 import os
 from urllib.request import Request, urlopen
 
+from django.db.models import Count, F, Q
+from django.utils import timezone
+
 from .models import Workshop
 
 
@@ -114,7 +117,7 @@ def tutor_reply(message, role, area, user=None):
             "provider": "local",
         }
     if any(term in lower for term in ["recomendar_cursos", "recomendar oficinas", "quais cursos", "quais oficinas"]):
-        return get_workshop_recommendations(area)
+        return get_workshop_recommendations(area, user=user)
     if any(term in lower for term in ["tarefa_dia", "gerar tarefa", "desafio prático", "desafio do dia"]):
         return get_daily_task(area)
     if any(term in lower for term in ["ideia_projeto", "ideias de projetos", "sugerir projeto"]):
@@ -146,17 +149,24 @@ def tutor_reply(message, role, area, user=None):
     }
 
 
-def get_workshop_recommendations(area):
-    workshops = Workshop.objects.filter(area__icontains=area).order_by("data")[:3]
-    if not workshops.exists():
-        workshops = Workshop.objects.order_by("data")[:3]
-    if not workshops.exists():
+def get_workshop_recommendations(area, user=None):
+    now = timezone.now()
+    available = Workshop.objects.filter(
+        Q(escola__isnull=True) | Q(escola_id=getattr(user, "escola_id", None)),
+        Q(inscricoes_ate__isnull=True) | Q(inscricoes_ate__gte=now),
+        status=Workshop.Status.PUBLISHED,
+        data__gte=now,
+    ).annotate(enrollment_count=Count("inscricoes")).filter(vagas__gt=F("enrollment_count")).order_by("data")
+    workshops = list(available.filter(area__icontains=area)[:3])
+    if not workshops:
+        workshops = list(available[:3])
+    if not workshops:
         return {
             "texto": f"Ainda não há oficinas abertas em {area}. Enquanto isso, registre uma evidência de portfólio e converse com seu professor sobre o próximo desafio.",
             "tipo": "recomendacao",
             "provider": "local",
         }
-    rows = [f"• {item.titulo} — {item.data:%d/%m/%Y %H:%M} ({item.vagas_restantes} vagas)" for item in workshops]
+    rows = [f"• {item.titulo} — {timezone.localtime(item.data):%d/%m/%Y %H:%M} ({item.vagas - item.enrollment_count} vagas)" for item in workshops]
     return {"texto": "Oficinas recomendadas:\n\n" + "\n".join(rows), "tipo": "recomendacao", "provider": "local"}
 
 

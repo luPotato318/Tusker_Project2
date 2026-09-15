@@ -5,7 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}PIEM — Inserção Estudantil &amp; Mercado{% endblock %}</title>
-  <meta name="description" content="PIEM Tusker Power conecta estudantes do 3º ano, professores e empresas por competências, evidências e oportunidades verificáveis.">
+  <meta name="description" content="{% block meta_description %}PIEM Tusker Power conecta estudantes do 3º ano, professores e empresas por competências, evidências e oportunidades verificáveis.{% endblock %}">
+  {% block meta_robots %}<meta name="robots" content="{{ PIEM_ROBOTS }}">{% endblock %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="PIEM Tusker Power {{ PIEM_VERSION }} — {{ PIEM_RELEASE_NAME }}">
   <meta property="og:description" content="Talento, escola e mercado conectados.">
@@ -25,12 +26,13 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
 
   <!-- Cabeçalho Institucional & Navegação -->
   <header class="site-header">
     <div class="header-container header-inner">
       <a class="brand" href="{% url 'home' %}">
-        <img src="{% static 'piem-logo.jpg' %}" alt="Logo PIEM">
+        <img src="{% static 'piem-logo.jpg' %}" alt="" width="46" height="46">
         <div class="brand-text">
           <span class="brand-title">PIEM</span>
           <span class="brand-subtitle">Inserção Estudantil &amp; Mercado</span>
@@ -38,15 +40,15 @@
       </a>
 
       <!-- Botão Hambúrguer Mobile -->
-      <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu de navegação" aria-expanded="false">
-        &#9776;
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Abrir menu de navegação" aria-expanded="false" aria-controls="main-nav">
+        <span aria-hidden="true">&#9776;</span>
       </button>
 
       <!-- Navegação Principal -->
-      <nav class="main-nav" id="main-nav">
-        <a href="{% url 'home' %}">Início</a>
-        <a href="{% url 'courses' %}">Cursos</a>
-        <a href="{% url 'showcase' %}">Vitrine</a>
+      <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
+        <a href="{% url 'home' %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %}>Início</a>
+        <a href="{% url 'courses' %}" {% if request.resolver_match.url_name == 'courses' %}aria-current="page"{% endif %}>Cursos</a>
+        <a href="{% url 'showcase' %}" {% if request.resolver_match.url_name == 'showcase' %}aria-current="page"{% endif %}>Vitrine</a>
         <a href="{% url 'home' %}#canal-seguro">Canal Seguro</a>
 
         {% if user.is_authenticated %}
@@ -78,14 +80,14 @@
       {% for message in messages %}
         <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">
           <span>{{ message }}</span>
-          <button type="button" class="alert-close" onclick="this.parentElement.remove()">&times;</button>
+          <button type="button" class="alert-close" data-dismiss-alert aria-label="Fechar mensagem">&times;</button>
         </div>
       {% endfor %}
     </div>
   {% endif %}
 
   <!-- Conteúdo Principal da Página -->
-  <main class="main-container">
+  <main class="main-container" id="main-content" tabindex="-1">
     {% block content %}
     {% endblock %}
   </main>
@@ -99,18 +101,18 @@
           Desenvolvido por <strong>&copy;DEV Lucas Polidori</strong> · Plataforma Integrada de Inserção Escolar
         </p>
       </div>
-      <button type="button" class="btn btn-sm btn-outline footer-version" onclick="openVersionModal()">Versão v{{ PIEM_VERSION }}</button>
+      <button type="button" class="btn btn-sm btn-outline footer-version" data-open-version aria-haspopup="dialog" aria-controls="version-modal">Versão v{{ PIEM_VERSION }}</button>
     </div>
   </footer>
 
   <!-- Modal de Versionamento & Release Notes -->
-  <div id="version-modal" class="modal-overlay" onclick="closeVersionModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeVersionModal()">&times;</button>
+  <dialog id="version-modal" class="modal-overlay" aria-labelledby="version-modal-title">
+    <div class="modal-content">
+      <button type="button" class="modal-close" data-close-version aria-label="Fechar notas da versão" autofocus>&times;</button>
       
       <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border-line); padding-bottom: 16px;">
         <span class="eyebrow">Notas de Lançamento</span>
-        <h2>PIEM {{ version_info.edition }}</h2>
+        <h2 id="version-modal-title">PIEM {{ version_info.edition }}</h2>
         <p style="color: var(--text-muted); font-size: 0.9rem;">
           Versão <strong>v{{ version_info.version }}</strong> (Build {{ version_info.build }}) · Data: {{ version_info.release_date }}
         </p>
@@ -134,24 +136,14 @@
       </div>
 
       <div style="text-align: right; margin-top: 20px;">
-        <button class="btn btn-sm btn-outline" onclick="closeVersionModal()">Fechar</button>
+        <button type="button" class="btn btn-sm btn-outline" data-close-version>Fechar</button>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Scripts JavaScript Estáticos -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="{% static 'core/js/main.js' %}"></script>
-  <script>
-    function openVersionModal() {
-      document.getElementById('version-modal').classList.add('active');
-    }
-    function closeVersionModal(event) {
-      if (!event || event.target.id === 'version-modal' || event.target.classList.contains('modal-close') || event.target.tagName === 'BUTTON') {
-        document.getElementById('version-modal').classList.remove('active');
-      }
-    }
-  </script>
+  <script defer src="{% static 'core/js/main.js' %}"></script>
   {% block extra_js %}{% endblock %}
+  {% include 'core/partials/speed_insights.html' %}
 </body>
 </html>

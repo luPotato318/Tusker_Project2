@@ -6,4 +6,9 @@ staticfiles/
 db.sqlite3
 .env
 node_modules/
+.venv-codex/
+.env.*
+!.env.example
+.vercel/
+test-results/
 

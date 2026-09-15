@@ -1,14 +1,19 @@
 from pathlib import Path
 import os
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(BASE_DIR / ".env")
+if os.environ.get("PIEM_READ_DOT_ENV", "true").lower() not in {"false", "0"}:
+    environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("SECRET_KEY", default="G0NjRvqsCvevBJxp81IV_IfgoDA6KC9XlRQmfcoVfvY")
-DEBUG = env("DEBUG", default=True)
+DEBUG = env.bool("DEBUG", default=False)
+SECRET_KEY = env("SECRET_KEY", default="django-insecure-local-development-only" if DEBUG else "")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("Defina SECRET_KEY no ambiente antes de iniciar o PIEM em produção.")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 
 INSTALLED_APPS = [
@@ -97,7 +102,7 @@ LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "assets"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
@@ -135,9 +140,19 @@ SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=0)
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 LOGIN_URL = "login_aluno"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "home"
+
+# A coleta é restrita às páginas públicas pelo context processor.
+SPEED_INSIGHTS_ENABLED = env.bool(
+    "SPEED_INSIGHTS_ENABLED", default=env("VERCEL_ENV", default="") == "production" and not DEBUG,
+)
+SPEED_INSIGHTS_SCRIPT_URL = env("SPEED_INSIGHTS_SCRIPT_URL", default="/_vercel/speed-insights/script.js")
+SPEED_INSIGHTS_SAMPLE_RATE = env.float("SPEED_INSIGHTS_SAMPLE_RATE", default=1.0)
+if not 0 <= SPEED_INSIGHTS_SAMPLE_RATE <= 1:
+    raise ImproperlyConfigured("SPEED_INSIGHTS_SAMPLE_RATE deve estar entre 0 e 1.")

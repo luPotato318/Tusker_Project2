@@ -16,19 +16,25 @@
   <!-- Barra de Pesquisa e Filtros -->
   <div style="margin-bottom: 32px;">
     <div class="form-group" style="max-width: 500px; margin: 0 auto 20px auto;">
-      <input type="text" id="showcase-search" placeholder="&#128065; Buscar projeto por título, resumo ou autor..." style="border-radius: var(--radius-full); padding: 14px 20px;">
+      <label class="sr-only" for="showcase-search">Buscar projeto por título, resumo ou autor</label>
+      <input type="search" id="showcase-search" placeholder="Buscar por título, resumo ou autor..." aria-controls="showcase-projects" style="border-radius: var(--radius-full); padding: 14px 20px;">
     </div>
 
-    <div class="chips-container showcase-chips" style="justify-content: center;">
-      <span class="chip active" data-area="todas">Todas as áreas</span>
+    <div class="chips-container showcase-chips" role="group" aria-label="Filtrar projetos por área" style="justify-content: center;">
+      <button type="button" class="chip active" data-area="todas" aria-pressed="true" aria-controls="showcase-projects">Todas as áreas</button>
       {% for area in areas %}
-        <span class="chip" data-area="{{ area }}">{{ area }}</span>
+        <button type="button" class="chip" data-area="{{ area }}" aria-pressed="false" aria-controls="showcase-projects">{{ area }}</button>
       {% endfor %}
     </div>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 16px;">
+      <p id="showcase-count" role="status" aria-live="polite" aria-atomic="true">{{ projects|length }} projeto{{ projects|length|pluralize }} encontrado{{ projects|length|pluralize }}</p>
+      <button id="showcase-clear" type="button" class="btn btn-sm btn-outline" hidden>Limpar filtros</button>
+    </div>
+    <noscript><p>Ative o JavaScript para usar a busca e os filtros. Todos os projetos públicos estão listados abaixo.</p></noscript>
   </div>
 
   <!-- Grid de Projetos da Vitrine -->
-  <div class="grid grid-3 showcase-grid">
+  <div id="showcase-projects" class="grid grid-3 showcase-grid">
     {% for project in projects %}
       <article class="card project-card" data-area="{{ project.area }}">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
@@ -61,14 +67,15 @@
         </div>
       </article>
     {% empty %}
-      <div id="showcase-empty" style="grid-column: 1 / -1; text-align: center; padding: 60px 0;">
+      <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 60px 0;">
         <p class="lead">Nenhum projeto público encontrado no momento.</p>
       </div>
     {% endfor %}
   </div>
 
-  <div id="showcase-empty" style="display: none; grid-column: 1 / -1; text-align: center; padding: 60px 0;">
+  <div id="showcase-filter-empty" class="empty-state" hidden style="text-align: center; padding: 60px 0;">
     <p class="lead">Nenhum projeto encontrado para os filtros selecionados.</p>
+    <p>Tente outra palavra ou use “Limpar filtros” para ver todos os projetos.</p>
   </div>
 </section>
 {% endblock %}
